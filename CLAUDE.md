@@ -20,7 +20,15 @@ is measured, not asserted. Built deliberately in **TypeScript/Node.js** (see `do
 - **M2 — done ✅** Ingest CLI (fixtures → chunk → OpenAI embeddings → pgvector), cosine
   top-k retrieval with citations behind `GET /search`, and a **pgvector integration test in
   CI** (deterministic vectors — no API key needed). ESLint/Prettier quality gate added.
-- **Next: M3** — LangGraph.js DD-check agent + `GET /report/:company`. See the Roadmap below.
+- **M3 — done ✅** LangGraph.js agent: a node per DD check (revenue concentration, related-party,
+  going-concern, auditor change) retrieves company-scoped evidence, reasons a verdict (Claude via
+  the Vercel AI SDK), and returns a cited finding. `GET /report/:company` → structured report.
+  Keyless demo/CI via `LLM_PROVIDER=local` (deterministic heuristic); end-to-end agent test in CI.
+- **Next: M4** — eval harness (golden set + LLM-as-judge) scoring the agent in CI. The headline.
+
+**Provider switches (keep demos/CI keyless):** `EMBED_PROVIDER=local` (lexical embedder) and
+`LLM_PROVIDER=local` (heuristic reasoner) make `make demo` and the DB tests run with no API key;
+omit them (defaults: OpenAI embeddings, Anthropic reasoning) for the real semantic path.
 
 ## Stack
 
@@ -39,18 +47,22 @@ Full rationale: [`docs/adr/0001-stack-and-deploy.md`](docs/adr/0001-stack-and-de
 ## Repo layout
 
 ```
-src/server.ts      Fastify app factory (buildServer) — /health, /search
+src/server.ts      Fastify app factory (buildServer) — /health, /search, /report/:company
 src/index.ts       entrypoint (listen)
 src/chunk.ts       paragraph-aware text chunker (pure)
-src/embeddings.ts  OpenAI embeddings via the Vercel AI SDK (embed / embedMany)
+src/embeddings.ts  embeddings via Vercel AI SDK — OpenAI or keyless local (EMBED_PROVIDER)
 src/ingest.ts      ingest CLI — fixtures → chunk → embed → pgvector
+src/checks.ts      the 4 DD checks + report types (Finding, Citation, Report)
+src/reasoner.ts    per-check verdict — Claude (Vercel AI SDK) or keyless heuristic (LLM_PROVIDER)
+src/agent.ts       LangGraph.js graph (node per check) → runReport(company)
+src/demo.ts        `make demo` — prints a cited audit report per company
 src/db/schema.ts   Drizzle schema: documents, chunks (pgvector + HNSW index)
-src/db/search.ts   cosine top-k retrieval with citations (searchByVector)
+src/db/search.ts   cosine top-k retrieval with citations (searchByVector, company-scoped)
 src/db/client.ts   drizzle + postgres.js client
 src/db/migrate.ts  migration runner (drizzle-orm/postgres-js/migrator)
 fixtures/          reference-company docs + manifest.json (planted DD signals)
 drizzle/           generated migrations (0000 also CREATE EXTENSION vector)
-test/              Vitest specs (health, chunk; retrieval gated on RUN_DB_TESTS)
+test/              Vitest specs (health/chunk/reasoner keyless; retrieval/agent on RUN_DB_TESTS)
 docs/adr/          architecture decision records
 ```
 
@@ -63,6 +75,8 @@ npm run db:migrate           # apply migrations (+ CREATE EXTENSION vector)
 npm run ingest               # embed fixtures into pgvector (needs OPENAI_API_KEY)
 npm run dev                  # Fastify on :3000
 curl 'localhost:3000/search?q=going%20concern'   # cited retrieval
+curl 'localhost:3000/report/helios'              # cited DD report (needs ANTHROPIC_API_KEY)
+make demo                    # keyless end-to-end demo of the current milestone
 make check                   # full gate: typecheck + lint + format + test
 RUN_DB_TESTS=1 npm test      # include the pgvector integration test (needs a live DB)
 ```

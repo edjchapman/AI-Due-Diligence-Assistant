@@ -5,7 +5,7 @@
 
 **An AI due-diligence assistant** that ingests a target company's filings, board minutes, and public commentary, runs structured due-diligence checks via a stateful **LangGraph.js** agent, and produces an **audit-grade report with cited sources** — plus a **CI-runnable evaluation harness** that scores its own answers. A portfolio project by [Ed Chapman](https://github.com/edjchapman) demonstrating end-to-end ownership of a production-shaped LLM system in **TypeScript/Node.js**: design, build, deploy, operate, evaluate.
 
-> **Status: `M2` (ingest + cited retrieval).** Typed Fastify service, Postgres/pgvector with a real ingest → embed → cosine-retrieval path (`/search`), and a pgvector integration test in CI. The stateful agent and the eval harness land in M3–M4 (see the milestones below). The eval harness — verification, not just generation — is the headline signal.
+> **Status: `M3` (stateful agent + report API).** A LangGraph.js agent runs a node per due-diligence check (revenue concentration, related-party, going-concern, auditor change) over the ingested corpus and returns an **audit-grade report with citations** (`GET /report/:company`). The eval harness — verification, not just generation, and the headline signal — lands in M4.
 
 ## Why this exists
 
@@ -17,9 +17,9 @@ Most engineers can call an LLM API. Fewer can show a _system_ around it: retriev
 Ingest CLI (TS) ─▶ Postgres + pgvector (Drizzle) ─▶ Fastify API ─▶ LangGraph.js agent ─▶ Eval harness (golden + LLM-as-judge, in CI)
 ```
 
-- **Fastify** typed HTTP surface (`/health`, `/search` today; `/report/:id`, `/eval/:id` in M3).
+- **Fastify** typed HTTP surface (`/health`, `/search`, `/report/:company`; `/eval/:company` in M4).
 - **Postgres + pgvector** via **Drizzle ORM** — one store for relational metadata and vector retrieval.
-- **LangGraph.js** stateful agent for the due-diligence checks; **Vercel AI SDK** for provider-agnostic model calls (Anthropic).
+- **LangGraph.js** stateful agent — a node per due-diligence check, each retrieving, reasoning (Claude via the **Vercel AI SDK**), and returning a cited finding.
 - **Eval harness** (Vitest) — golden-set + LLM-as-judge, runnable in CI.
 
 ## Quickstart
@@ -27,29 +27,31 @@ Ingest CLI (TS) ─▶ Postgres + pgvector (Drizzle) ─▶ Fastify API ─▶ L
 **See it work in one command — no API key needed:**
 
 ```bash
-make demo   # brings up pgvector, migrates, ingests fixtures, runs cited retrieval
+make demo   # pgvector up → migrate → ingest → print a cited audit report per company
 ```
 
-`make demo` is the milestone demo: it runs the whole ingest → embed → cosine-retrieval
-path end-to-end and prints the top cited passage for a set of due-diligence queries. It's
-keyless by design (`EMBED_PROVIDER=local`, a deterministic lexical embedder) so it runs on
-a fresh clone with just Docker. Each milestone extends it to demo what it added.
+`make demo` is the milestone demo: it runs the whole pipeline end-to-end and prints an
+audit report (flagged vs clear per check, with citations) for each reference company. It's
+keyless by design (`EMBED_PROVIDER=local` + `LLM_PROVIDER=local`, deterministic stand-ins)
+so it runs on a fresh clone with just Docker. Each milestone extends it to demo what it added.
 
-**The real thing** (semantic embeddings, HTTP endpoint):
+**The real thing** (semantic embeddings + Claude, over HTTP):
 
 ```bash
 npm ci
-cp .env.example .env          # set DATABASE_URL, OPENAI_API_KEY (embeddings)
+cp .env.example .env          # set DATABASE_URL, OPENAI_API_KEY, ANTHROPIC_API_KEY
 docker compose up -d db       # Postgres + pgvector
 npm run db:migrate            # apply schema + CREATE EXTENSION vector
 npm run ingest                # embed the reference-company fixtures into pgvector
 npm run dev                   # Fastify on :3000
 curl 'localhost:3000/search?q=revenue%20concentration'   # cited retrieval
+curl 'localhost:3000/report/northwind'                   # full cited DD report
 ```
 
-`/search?q=<query>&k=<n>` embeds the query and returns cosine top-k chunks, each
-with its citation (`company`, `sourceType`, `title`, `ordinal`) and similarity score.
-Ingest is idempotent per company: `npm run ingest -- helios` re-ingests just one.
+- `/search?q=<query>&k=<n>` embeds the query and returns cosine top-k chunks, each cited.
+- `/report/:company` runs the LangGraph agent and returns a structured report: a finding
+  per check with `verdict`, `summary`, and `citations`. `:company` matches ingested names
+  case-insensitively. Ingest is idempotent: `npm run ingest -- helios` re-ingests just one.
 
 ## Development
 
@@ -64,7 +66,7 @@ make check          # the full gate CI runs: typecheck + lint + format + test
 
 - [x] **M1** — repo + typed Fastify skeleton (`/health`), Postgres/pgvector schema (Drizzle), Docker, CI green.
 - [x] **M2** — ingest CLI + OpenAI embeddings + cited retrieval (`/search`); pgvector integration test in CI.
-- [ ] **M3** — LangGraph.js DD-check agent + `/report/:id` with citations.
+- [x] **M3** — LangGraph.js DD-check agent (node per check) + `GET /report/:company` with citations.
 - [ ] **M4** — eval harness (golden + LLM-as-judge) running in CI, results in the README.
 - [ ] **M5** — Railway deploy + public demo + case study.
 

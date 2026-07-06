@@ -41,4 +41,4 @@ db-down: ## Stop the dev database
 demo: db-up ## Demo the current milestone end-to-end (keyless; needs Docker)
 	npm run db:migrate
 	EMBED_PROVIDER=local npm run --silent ingest
-	EMBED_PROVIDER=local npm run --silent demo
+	EMBED_PROVIDER=local LLM_PROVIDER=local npm run --silent demo
