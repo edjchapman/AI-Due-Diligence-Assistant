@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "start:prod": "npm run db:migrate && npm run ingest && npm run start",
     "typecheck": "tsc",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -26,6 +27,8 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.8",
     "@ai-sdk/openai": "^4.0.8",
+    "@fastify/rate-limit": "^11.1.0",
+    "@fastify/static": "^9.1.3",
     "@langchain/langgraph": "^1.4.7",
     "ai": "^7.0.16",
     "drizzle-orm": "^0.45.2",

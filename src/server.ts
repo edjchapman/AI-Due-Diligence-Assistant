@@ -1,3 +1,7 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { runReport } from './agent';
 import { listCompanies, searchByVector } from './db/search';
@@ -9,17 +13,36 @@ interface SearchQuery {
   k?: string;
 }
 
+const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+
 /**
- * Build the Fastify app. Kept as a factory so tests can construct an instance
- * with logging off and use `app.inject()` without binding a port.
+ * Build the Fastify app. Async so plugins are registered *before* the routes —
+ * @fastify/rate-limit installs an onRoute hook on load, so routes added before it
+ * would escape the limiter. Kept as a factory so tests can `app.inject()`.
  */
-export function buildServer(opts: FastifyServerOptions = { logger: true }): FastifyInstance {
+export async function buildServer(
+  opts: FastifyServerOptions = { logger: true },
+): Promise<FastifyInstance> {
   const app = Fastify(opts);
+
+  // Rate-limit the public endpoints (60/min/IP); exempt the health check so
+  // platform probes are never throttled.
+  await app.register(rateLimit, {
+    max: 60,
+    timeWindow: '1 minute',
+    allowList: (request) => request.url === '/health',
+  });
+
+  // Serve the minimal demo page (public/index.html) at the root.
+  await app.register(fastifyStatic, { root: PUBLIC_DIR, prefix: '/' });
 
   app.get('/health', () => ({
     status: 'ok',
     service: 'ai-due-diligence-assistant',
   }));
+
+  // Companies present in the corpus — powers the demo page's picker.
+  app.get('/companies', async () => ({ companies: await listCompanies() }));
 
   // Cited retrieval: embed the query, then cosine top-k over the corpus. Each
   // result carries its source (company, sourceType, title, ordinal) for citation.
