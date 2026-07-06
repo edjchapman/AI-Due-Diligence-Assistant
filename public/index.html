@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Due Diligence Assistant</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --panel: #171a21;
+        --ink: #e6e8ec;
+        --muted: #9aa3af;
+        --line: #262b34;
+        --flag: #e5534b;
+        --clear: #3fb950;
+        --accent: #4c8bf5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 32px 20px 64px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      button {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 14px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      input {
+        flex: 1;
+        min-width: 220px;
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font: inherit;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+      }
+      .finding {
+        display: flex;
+        gap: 10px;
+        padding: 8px 0;
+        border-top: 1px solid var(--line);
+      }
+      .finding:first-child {
+        border-top: 0;
+      }
+      .badge {
+        flex: none;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 999px;
+        height: fit-content;
+      }
+      .flagged {
+        background: rgba(229, 83, 75, 0.15);
+        color: var(--flag);
+      }
+      .clear {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--clear);
+      }
+      .uncertain {
+        background: rgba(154, 163, 175, 0.15);
+        color: var(--muted);
+      }
+      .label {
+        font-weight: 600;
+      }
+      .summary {
+        color: var(--ink);
+      }
+      .cite {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 24px;
+      }
+      code {
+        background: #0b0d11;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 1px 5px;
+      }
+      a {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AI Due Diligence Assistant</h1>
+      <p class="sub">
+        Retrieval with citations · a stateful LangGraph agent · a CI-runnable eval harness.
+      </p>
+
+      <div class="row" id="companies"></div>
+      <div class="row">
+        <input id="q" placeholder="Search the corpus, e.g. related-party lease" />
+        <button id="searchBtn">Search</button>
+      </div>
+
+      <div id="out"></div>
+
+      <p class="note" id="note"></p>
+    </main>
+
+    <script>
+      const out = document.getElementById('out');
+      const esc = (s) =>
+        String(s).replace(
+          /[&<>"]/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+        );
+
+      async function json(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || res.statusText);
+        return res.json();
+      }
+
+      function renderReport(report) {
+        const flags = report.findings.filter((f) => f.verdict === 'flagged').length;
+        out.innerHTML =
+          `<div class="card"><div class="label">${esc(report.company)} — ${flags} flag(s)</div>` +
+          report.findings
+            .map((f) => {
+              const cite = f.citations[0];
+              return (
+                `<div class="finding"><span class="badge ${f.verdict}">${f.verdict}</span>` +
+                `<div><div class="label">${esc(f.label)}</div>` +
+                `<div class="summary">${esc(f.summary)}</div>` +
+                (cite
+                  ? `<div class="cite">↳ ${esc(cite.company)} · ${esc(cite.sourceType)} #${cite.ordinal} — “${esc(cite.snippet)}”</div>`
+                  : '') +
+                `</div></div>`
+              );
+            })
+            .join('') +
+          `</div>`;
+      }
+
+      function renderSearch(data) {
+        out.innerHTML =
+          `<div class="card"><div class="label">${data.count} result(s) for “${esc(data.query)}”</div>` +
+          data.results
+            .map(
+              (r) =>
+                `<div class="finding"><span class="badge clear">${r.score.toFixed(2)}</span>` +
+                `<div><div class="label">${esc(r.company)} · ${esc(r.sourceType)} #${r.ordinal}</div>` +
+                `<div class="cite">${esc(r.content.slice(0, 200))}…</div></div></div>`,
+            )
+            .join('') +
+          `</div>`;
+      }
+
+      async function report(company) {
+        out.textContent = 'Running the agent…';
+        try {
+          renderReport(await json('/report/' + encodeURIComponent(company)));
+        } catch (e) {
+          out.textContent = 'Error: ' + e.message;
+        }
+      }
+
+      async function search() {
+        const q = document.getElementById('q').value.trim();
+        if (!q) return;
+        out.textContent = 'Searching…';
+        try {
+          renderSearch(await json('/search?q=' + encodeURIComponent(q)));
+        } catch (e) {
+          out.textContent = 'Error: ' + e.message;
+        }
+      }
+
+      document.getElementById('searchBtn').addEventListener('click', search);
+      document.getElementById('q').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') search();
+      });
+
+      (async () => {
+        try {
+          const { companies } = await json('/companies');
+          const box = document.getElementById('companies');
+          if (companies.length === 0) {
+            box.textContent = 'No companies ingested yet — run `make demo`.';
+          }
+          for (const c of companies) {
+            const b = document.createElement('button');
+            b.textContent = c;
+            b.addEventListener('click', () => report(c));
+            box.appendChild(b);
+          }
+          document.getElementById('note').innerHTML =
+            'Public demo runs in keyless deterministic mode (local embedder + heuristic reasoner). ' +
+            'The real path uses OpenAI embeddings + Claude — see the ' +
+            '<a href="https://github.com/edjchapman/AI-Due-Diligence-Assistant">repository</a>.';
+        } catch (e) {
+          document.getElementById('companies').textContent =
+            'Error loading companies: ' + e.message;
+        }
+      })();
+    </script>
+  </body>
+</html>

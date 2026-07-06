@@ -28,7 +28,11 @@ is measured, not asserted. Built deliberately in **TypeScript/Node.js** (see `do
   scores every finding against a golden set (`src/golden.ts`) with an LLM-as-judge. `make eval` and
   a CI step print the score table and gate the build (`12/12`, keyless/deterministic). The judge is
   real Claude under `JUDGE_PROVIDER=anthropic`. **This is the headline — verification, not assertion.**
-- **Next: M5** — Railway deploy + minimal demo page + rate-limit public endpoints + case study.
+- **M5 — done ✅** Minimal demo page (`public/index.html`, served at `/`), rate-limited public
+  endpoints (`@fastify/rate-limit`, 60/min/IP; `/health` exempt), keyless-by-default Railway deploy
+  config (`railway.json`, `.dockerignore`, `start:prod` = migrate → ingest → serve), and a
+  recruiter-readable [case study](docs/case-study.md). The live deploy is one command (`railway up`)
+  — run by the author, not from CI. `buildServer` is now async (plugins registered before routes).
 
 **Provider switches (keep demos/CI keyless):** `EMBED_PROVIDER=local` (lexical embedder),
 `LLM_PROVIDER=local` (heuristic reasoner), and `JUDGE_PROVIDER=local` (verdict-match judge) make
@@ -52,7 +56,9 @@ Full rationale: [`docs/adr/0001-stack-and-deploy.md`](docs/adr/0001-stack-and-de
 ## Repo layout
 
 ```
-src/server.ts      Fastify app factory (buildServer) — /health, /search, /report/:company
+src/server.ts      Fastify factory (async buildServer) — /, /health, /companies, /search, /report; rate-limited
+public/index.html  minimal demo page (served at /)
+railway.json       Railway deploy config (Dockerfile, /health probe)
 src/index.ts       entrypoint (listen)
 src/chunk.ts       paragraph-aware text chunker (pure)
 src/embeddings.ts  embeddings via Vercel AI SDK — OpenAI or keyless local (EMBED_PROVIDER)

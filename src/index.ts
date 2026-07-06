@@ -1,6 +1,6 @@
 import { buildServer } from './server';
 
-const app = buildServer({ logger: true });
+const app = await buildServer({ logger: true });
 const port = Number(process.env.PORT ?? 3000);
 
 app
