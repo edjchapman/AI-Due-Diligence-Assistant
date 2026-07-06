@@ -1,0 +1,31 @@
+{
+  "name": "ai-due-diligence-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI due-diligence assistant: cited-source reports over a company corpus via a LangGraph.js agent, with a CI-runnable eval harness. TypeScript/Node.js portfolio project.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "ingest": "tsx src/ingest.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "fastify": "^5.2.1",
+    "postgres": "^3.4.5",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.10"
+  }
+}
