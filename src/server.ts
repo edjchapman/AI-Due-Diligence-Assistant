@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import { searchByVector } from './db/search';
+import { runReport } from './agent';
+import { listCompanies, searchByVector } from './db/search';
 import { embedQuery } from './embeddings';
 
 /** `?q=` is required; `?k=` (1–20) is an optional result count. */
@@ -31,6 +32,18 @@ export function buildServer(opts: FastifyServerOptions = { logger: true }): Fast
     const embedding = await embedQuery(q);
     const results = await searchByVector(embedding, limit);
     return { query: q, count: results.length, results };
+  });
+
+  // Structured, cited due-diligence report: runs the LangGraph agent over the
+  // company's corpus. `:company` matches case-insensitively against ingested names.
+  app.get('/report/:company', async (request, reply) => {
+    const { company } = request.params as { company: string };
+    const companies = await listCompanies();
+    const match = companies.find((c) => c.toLowerCase().includes(company.toLowerCase()));
+    if (!match) {
+      return reply.code(404).send({ error: `no ingested company matches "${company}"` });
+    }
+    return runReport(match);
   });
 
   return app;
