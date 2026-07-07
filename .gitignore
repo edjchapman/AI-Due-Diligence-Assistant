@@ -4,6 +4,10 @@ dist/
 *.log
 coverage/
 
+# Stray local SQLite files. This project's datastore is Postgres/pgvector, so a
+# *.db file is never a real artefact — just a scratch DB from an ad-hoc tool.
+*.db
+
 # Claude Code — ignore only the personal/machine-specific bits (symlinks + local
 # settings). Deliberately NOT a blanket .claude/ ignore, so a committed
 # .claude/settings.json + .claude/hooks/ bootstrap can still be tracked.
