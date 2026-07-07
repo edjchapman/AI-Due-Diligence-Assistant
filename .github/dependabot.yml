@@ -8,6 +8,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: chore
+    ignore:
+      # @types/node tracks the runtime — keep it on the Node major we pin (24),
+      # not ahead of it. Bump manually when the Node version moves.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       # One PR for routine minor/patch bumps to keep noise down.
       minor-and-patch:
