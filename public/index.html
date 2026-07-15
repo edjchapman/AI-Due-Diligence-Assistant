@@ -3,137 +3,211 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="AI due-diligence assistant — a LangGraph agent runs four checks over a company's filings and returns cited verdicts, corroborated by structured extraction."
+    />
     <title>AI Due Diligence Assistant</title>
     <style>
+      /* ---------- theme tokens: light default, dark via prefers-color-scheme ---------- */
       :root {
-        --bg: #0f1115;
-        --panel: #171a21;
-        --ink: #e6e8ec;
-        --muted: #9aa3af;
-        --line: #262b34;
-        --flag: #e5534b;
-        --clear: #3fb950;
-        --accent: #4c8bf5;
+        color-scheme: light dark;
+        --bg: #fafbfc;
+        --panel: #ffffff;
+        --ink: #1a1f27;
+        --muted: #5c6672;
+        --line: #e3e7ec;
+        --flag: #c93c34;
+        --clear: #1a7f37;
+        --accent: #2f6fdb;
+        --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
       }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1115;
+          --panel: #171a21;
+          --ink: #e6e8ec;
+          --muted: #9aa3af;
+          --line: #262b34;
+          --flag: #e5534b;
+          --clear: #3fb950;
+          --accent: #4c8bf5;
+          --shadow: none;
+        }
+      }
+
       * {
         box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
       }
       body {
         margin: 0;
         background: var(--bg);
         color: var(--ink);
         font:
-          15px/1.5 ui-sans-serif,
+          15px/1.6 ui-sans-serif,
           system-ui,
           -apple-system,
-          Segoe UI,
+          'Segoe UI',
           Roboto,
           sans-serif;
       }
       main {
-        max-width: 860px;
+        max-width: 920px;
         margin: 0 auto;
-        padding: 32px 20px 64px;
+        padding: 48px 20px 72px;
       }
-      header {
+      a {
+        color: var(--accent);
+      }
+      button,
+      input {
+        font: inherit;
+        color: inherit;
+      }
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+
+      /* ---------- header ---------- */
+      .masthead {
         display: flex;
-        align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
       }
       h1 {
-        font-size: 22px;
-        margin: 0 0 4px;
+        margin: 0 0 6px;
+        font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.1rem);
+        letter-spacing: -0.02em;
+        line-height: 1.2;
       }
       .sub {
+        margin: 0;
         color: var(--muted);
-        margin: 0 0 24px;
-        max-width: 640px;
+        max-width: 56ch;
       }
       .pill {
-        flex: none;
-        font-size: 12px;
-        color: var(--muted);
-        background: var(--panel);
+        flex-shrink: 0;
         border: 1px solid var(--line);
         border-radius: 999px;
-        padding: 4px 10px;
+        padding: 5px 12px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        background: var(--panel);
         white-space: nowrap;
       }
-      /* Each numbered step introduces one of the two capabilities. */
+      .pipeline {
+        margin: 20px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78rem;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .pipeline .stage {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 6px;
+        padding: 2px 8px;
+      }
+      .pipeline .arrow {
+        opacity: 0.55;
+      }
+
+      /* ---------- sections ---------- */
       .section {
-        margin-bottom: 24px;
+        margin-top: 40px;
       }
       .step {
         display: flex;
         align-items: baseline;
-        gap: 8px;
-        margin-bottom: 4px;
+        gap: 10px;
       }
-      .step .n {
-        flex: none;
+      .n {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         width: 22px;
         height: 22px;
-        line-height: 22px;
-        text-align: center;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--accent);
+        border-radius: 50%;
         border: 1px solid var(--line);
-        border-radius: 999px;
+        background: var(--panel);
+        color: var(--muted);
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        transform: translateY(3px);
       }
-      .step h2 {
-        font-size: 16px;
+      h2 {
         margin: 0;
+        font-size: 1.05rem;
+        letter-spacing: -0.01em;
       }
       .hint {
+        margin: 6px 0 14px 32px;
         color: var(--muted);
-        font-size: 13px;
-        margin: 0 0 10px 30px;
-      }
-      .hint code {
-        color: var(--ink);
+        font-size: 0.88rem;
+        max-width: 64ch;
       }
       .controls {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-left: 30px;
+        margin-left: 32px;
       }
-      button {
-        background: var(--panel);
-        color: var(--ink);
+      button.company,
+      button.chip,
+      #searchBtn {
         border: 1px solid var(--line);
+        background: var(--panel);
         border-radius: 8px;
         padding: 8px 14px;
         cursor: pointer;
-        font: inherit;
+        box-shadow: var(--shadow);
       }
-      button:hover {
+      button.company:hover,
+      #searchBtn:hover {
         border-color: var(--accent);
-      }
-      .company::before {
-        content: '▸ ';
         color: var(--accent);
       }
-      input {
+      button.chip {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+        color: var(--muted);
+        border-radius: 999px;
+        box-shadow: none;
+      }
+      button.chip:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      #q {
         flex: 1;
         min-width: 220px;
-        background: var(--panel);
-        color: var(--ink);
         border: 1px solid var(--line);
+        background: var(--panel);
         border-radius: 8px;
         padding: 8px 12px;
-        font: inherit;
       }
-      /* Legend explaining the three verdicts a report can return. */
+      #q::placeholder {
+        color: var(--muted);
+        opacity: 0.8;
+      }
       .legend {
+        margin: 14px 0 0 32px;
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 16px;
-        margin: 0 0 12px 30px;
+        gap: 16px;
+        font-size: 0.8rem;
         color: var(--muted);
-        font-size: 13px;
       }
       .legend .key {
         font-weight: 600;
@@ -144,148 +218,358 @@
       .legend .clear .key {
         color: var(--clear);
       }
+
+      /* ---------- output region ---------- */
+      #out {
+        margin-top: 40px;
+      }
       .card {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 14px 16px;
-        margin-bottom: 12px;
-      }
-      /* A coloured left edge tells report cards and search cards apart at a glance. */
-      .card.report {
-        border-left: 3px solid var(--accent);
-      }
-      .card.searchcard {
-        border-left: 3px solid var(--muted);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-top: 14px;
+        box-shadow: var(--shadow);
       }
       .kicker {
-        font-size: 12px;
-        letter-spacing: 0.04em;
+        font-size: 0.72rem;
         text-transform: uppercase;
+        letter-spacing: 0.09em;
         color: var(--muted);
-        margin-bottom: 6px;
       }
-      .finding {
+      .report-head {
         display: flex;
-        gap: 10px;
-        padding: 8px 0;
-        border-top: 1px solid var(--line);
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
       }
-      .finding:first-of-type {
-        border-top: 0;
+      .report-head .company-name {
+        font-size: 1.25rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
       }
-      .badge {
-        flex: none;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 2px 8px;
+      .report-meta {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .verdict-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .verdict-strip a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
         border-radius: 999px;
-        height: fit-content;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        text-decoration: none;
+        color: var(--ink);
+        background: var(--bg);
       }
-      .flagged {
-        background: rgba(229, 83, 75, 0.15);
+      .verdict-strip a:hover {
+        border-color: var(--accent);
+      }
+      .dot {
+        font-weight: 700;
+      }
+      .dot.flagged {
         color: var(--flag);
       }
-      .clear {
-        background: rgba(63, 185, 80, 0.15);
+      .dot.clear {
         color: var(--clear);
       }
-      .uncertain {
-        background: rgba(154, 163, 175, 0.15);
+      .dot.uncertain {
         color: var(--muted);
       }
-      /* Neutral badge for a retrieval similarity score — deliberately not green,
-         so it is never mistaken for a `clear` verdict. */
-      .score {
-        background: rgba(76, 139, 245, 0.15);
-        color: var(--accent);
-      }
-      .label {
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 3px 11px;
+        font-size: 0.78rem;
         font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge.flagged {
+        color: var(--flag);
+        background: color-mix(in srgb, var(--flag) 12%, transparent);
+      }
+      .badge.clear {
+        color: var(--clear);
+        background: color-mix(in srgb, var(--clear) 12%, transparent);
+      }
+      .badge.uncertain {
+        color: var(--muted);
+        background: color-mix(in srgb, var(--muted) 12%, transparent);
+      }
+
+      .check-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .check-label {
+        font-weight: 650;
+        font-size: 1rem;
       }
       .summary {
-        color: var(--ink);
+        margin: 10px 0 0;
+        max-width: 72ch;
       }
-      .cite {
+
+      .citation {
+        margin: 14px 0 0;
+        padding: 10px 14px;
+        border-left: 3px solid var(--line);
+        background: color-mix(in srgb, var(--muted) 5%, transparent);
+        border-radius: 0 8px 8px 0;
+      }
+      .citation .src {
+        font-size: 0.78rem;
         color: var(--muted);
-        font-size: 13px;
-        margin-top: 4px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
       }
-      .cite .tag {
+      .citation .snippet {
+        margin: 6px 0 0;
+        font-size: 0.88rem;
         color: var(--ink);
+        font-style: italic;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      details.extract {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+      }
+      details.extract summary {
+        cursor: pointer;
+        padding: 9px 14px;
+        font-size: 0.8rem;
         font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        list-style-position: inside;
+      }
+      details.extract[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+      .extract-body {
+        padding: 12px 16px 14px;
+        font-size: 0.88rem;
+      }
+      .extract-body dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 4px 18px;
+      }
+      .extract-body dt {
+        color: var(--muted);
+      }
+      .extract-body dd {
+        margin: 0;
+        font-weight: 550;
+      }
+      .evidence {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-style: italic;
+        font-size: 0.84rem;
+      }
+      .extract-src {
+        margin: 10px 0 0;
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      /* ---------- search results ---------- */
+      .meter {
+        display: inline-block;
+        width: 72px;
+        height: 5px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--muted) 18%, transparent);
+        overflow: hidden;
+        vertical-align: middle;
+      }
+      .meter > span {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+        border-radius: 999px;
+      }
+      .result-src {
+        font-size: 0.82rem;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .result-body {
+        margin: 8px 0 0;
+        font-size: 0.9rem;
+      }
+      details.more summary {
+        cursor: pointer;
+        color: var(--accent);
+        font-size: 0.82rem;
+        margin-top: 6px;
+      }
+
+      /* ---------- states ---------- */
+      .error-card {
+        border-color: color-mix(in srgb, var(--flag) 40%, var(--line));
+        color: var(--flag);
+      }
+      .skeleton .bar {
+        height: 12px;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--muted) 14%, transparent);
+        margin-top: 10px;
+      }
+      .skeleton .bar.w40 {
+        width: 40%;
+      }
+      .skeleton .bar.w70 {
+        width: 70%;
+      }
+      .skeleton .bar.w90 {
+        width: 90%;
       }
       .note {
+        margin-top: 56px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
         color: var(--muted);
-        font-size: 13px;
-        margin-top: 24px;
+        font-size: 0.82rem;
+        max-width: 72ch;
       }
-      code {
-        background: #0b0d11;
-        border: 1px solid var(--line);
-        border-radius: 5px;
-        padding: 1px 5px;
+
+      @media (prefers-reduced-motion: no-preference) {
+        .card {
+          animation: rise 0.35s ease-out backwards;
+        }
+        .card:nth-child(2) {
+          animation-delay: 0.05s;
+        }
+        .card:nth-child(3) {
+          animation-delay: 0.1s;
+        }
+        .card:nth-child(4) {
+          animation-delay: 0.15s;
+        }
+        .card:nth-child(5) {
+          animation-delay: 0.2s;
+        }
+        @keyframes rise {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        .skeleton .bar {
+          animation: pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+          50% {
+            opacity: 0.45;
+          }
+        }
       }
-      a {
-        color: var(--accent);
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <header>
+      <header class="masthead">
         <div>
           <h1>AI Due Diligence Assistant</h1>
           <p class="sub">
-            Reads a company's filings and board minutes, runs four due-diligence checks, and cites
-            the exact source behind every verdict.
+            Reads a company&rsquo;s filings and board minutes, runs four due-diligence checks, and
+            cites the exact source behind every verdict.
           </p>
         </div>
-        <span class="pill" title="No API key needed — deterministic local providers">
-          keyless demo mode
-        </span>
+        <span class="pill" title="No API key needed — deterministic local providers"
+          >keyless demo mode</span
+        >
       </header>
+      <p class="pipeline" aria-label="Pipeline">
+        <span class="stage">filings + minutes</span><span class="arrow">→</span>
+        <span class="stage">chunk + embed (pgvector)</span><span class="arrow">→</span>
+        <span class="stage">LangGraph agent</span><span class="arrow">→</span>
+        <span class="stage">cited report</span><span class="arrow">→</span>
+        <span class="stage">eval gate in CI</span>
+      </p>
 
-      <section class="section">
+      <section class="section" aria-labelledby="report-h">
         <div class="step">
-          <span class="n">1</span>
-          <h2>Run a due-diligence report</h2>
+          <span class="n" aria-hidden="true">1</span>
+          <h2 id="report-h">Run a due-diligence report</h2>
         </div>
         <p class="hint">
-          Pick a company — a stateful LangGraph agent runs four checks (<span id="checkList"
-            >revenue concentration · related-party · going concern · auditor change</span
-          >), each returning a cited verdict.
+          Pick a company — a stateful LangGraph agent runs four checks (revenue concentration ·
+          related-party · going concern · auditor change), each returning a cited verdict
+          corroborated by structured extraction from the filing PDF.
         </p>
         <div class="controls" id="companies"></div>
         <div class="legend">
           <span class="flagged"><span class="key">⚑ flagged</span> concern found</span>
-          <span class="clear"><span class="key">✓ clear</span> evidence it doesn't apply</span>
+          <span class="clear"
+            ><span class="key">✓ clear</span> evidence it doesn&rsquo;t apply</span
+          >
           <span class="uncertain"><span class="key">– uncertain</span> inconclusive</span>
         </div>
       </section>
 
-      <section class="section">
+      <section class="section" aria-labelledby="search-h">
         <div class="step">
-          <span class="n">2</span>
-          <h2>Or search the source corpus</h2>
+          <span class="n" aria-hidden="true">2</span>
+          <h2 id="search-h">Or search the source corpus</h2>
         </div>
         <p class="hint">
           Semantic (vector) retrieval over the raw document chunks — the layer the agent reads from.
           Every hit carries its citation.
         </p>
-        <div class="controls">
-          <input id="q" placeholder="e.g. related-party lease" />
-          <button id="searchBtn">Search</button>
-        </div>
+        <form class="controls" id="search-form">
+          <input id="q" placeholder="e.g. related-party lease" aria-label="Search query" />
+          <button id="searchBtn" type="submit">Search</button>
+        </form>
+        <div class="controls" id="suggestions" style="margin-top: 8px"></div>
       </section>
 
-      <div id="out"></div>
+      <div id="out" aria-live="polite"></div>
 
-      <p class="note" id="note">
+      <footer class="note">
         Public demo runs in keyless deterministic mode (local embedder + heuristic reasoner). The
-        real path uses OpenAI embeddings + Claude — see the
-        <a href="https://github.com/edjchapman/AI-Due-Diligence-Assistant">repository</a>.
-      </p>
+        real path uses OpenAI embeddings + Claude, and every build is gated by a golden-set eval in
+        CI — see the
+        <a href="https://github.com/edjchapman/ai-due-diligence-assistant">repository</a>.
+      </footer>
     </main>
 
     <script>
@@ -301,7 +585,12 @@
 
       async function json(url) {
         const res = await fetch(url);
-        if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || res.statusText);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const err = new Error(body?.error || res.statusText);
+          err.status = res.status;
+          throw err;
+        }
         return res.json();
       }
 
@@ -310,72 +599,218 @@
         return Number.isNaN(d.getTime()) ? esc(iso) : d.toLocaleString();
       }
 
-      function renderReport(report) {
+      function renderError(e, verb) {
+        const msg =
+          e.status === 429
+            ? 'Rate limit reached — the public demo allows 60 requests a minute. Try again shortly.'
+            : `Could not ${verb}: ${e.message}`;
+        out.innerHTML = `<div class="card error-card" role="alert">${esc(msg)}</div>`;
+      }
+
+      function skeleton(n) {
+        out.innerHTML = Array.from(
+          { length: n },
+          () =>
+            `<div class="card skeleton" aria-hidden="true">` +
+            `<div class="bar w40"></div><div class="bar w90"></div><div class="bar w70"></div></div>`,
+        ).join('');
+        out.setAttribute('aria-busy', 'true');
+      }
+
+      function citationHtml(c) {
+        return (
+          `<figure class="citation" style="margin: 14px 0 0">` +
+          `<div class="src"><span>${esc(c.company)} · ${esc(c.sourceType)} · ${esc(c.title)} #${c.ordinal}</span>` +
+          `<span class="num">cosine ${Number(c.score).toFixed(2)}</span></div>` +
+          `<blockquote class="snippet" style="margin: 6px 0 0">&ldquo;${esc(c.snippet)}&rdquo;</blockquote></figure>`
+        );
+      }
+
+      // checkId → the matching field of the /extract payload (they map 1:1).
+      const EXTRACT_FIELDS = {
+        'revenue-concentration': (x) => {
+          const rc = x.revenueConcentration || {};
+          if (rc.largestCustomer == null && rc.largestCustomerPct == null) {
+            return {
+              rows: [['Largest customer', 'none above disclosure threshold']],
+              evidence: rc.evidence,
+            };
+          }
+          return {
+            rows: [
+              ['Largest customer', rc.largestCustomer ?? '—'],
+              [
+                'Share of revenue',
+                rc.largestCustomerPct != null ? `${rc.largestCustomerPct}%` : '—',
+              ],
+            ],
+            evidence: rc.evidence,
+          };
+        },
+        'related-party': (x) => {
+          const rp = x.relatedParties || [];
+          if (rp.length === 0)
+            return { rows: [['Related parties', 'none identified']], evidence: null };
+          return {
+            rows: rp.map((p) => [p.counterparty, p.relationship]),
+            evidence: rp.find((p) => p.evidence)?.evidence ?? null,
+          };
+        },
+        'going-concern': (x) => {
+          const gc = x.goingConcern || {};
+          return {
+            rows: [['Substantial doubt', gc.substantialDoubt ? 'yes' : 'no']],
+            evidence: gc.evidence,
+          };
+        },
+        'auditor-change': (x) => {
+          const a = x.auditor || {};
+          return {
+            rows: [
+              ['Auditor changed', a.changed ? 'yes' : 'no'],
+              ['Auditor', a.auditorName ?? '—'],
+            ],
+            evidence: a.evidence,
+          };
+        },
+      };
+
+      function extractPanelHtml(finding, extraction, docTitle) {
+        const read = EXTRACT_FIELDS[finding.checkId];
+        if (!extraction || !read) return '';
+        const { rows, evidence } = read(extraction);
+        const open = finding.verdict === 'flagged' ? ' open' : '';
+        return (
+          `<details class="extract"${open}><summary>Extracted fields</summary>` +
+          `<div class="extract-body"><dl>` +
+          rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('') +
+          `</dl>` +
+          (evidence ? `<p class="evidence">&ldquo;${esc(evidence)}&rdquo;</p>` : '') +
+          `<p class="extract-src">Structured extraction from ${esc(docTitle)} — independent of the agent&rsquo;s retrieval path.</p>` +
+          `</div></details>`
+        );
+      }
+
+      function findingHtml(f, extraction, docTitle) {
+        const icon = VERDICT_ICON[f.verdict] || '';
+        return (
+          `<article class="card" id="check-${esc(f.checkId)}">` +
+          `<div class="check-head"><span class="badge ${esc(f.verdict)}">${icon} ${esc(f.verdict)}</span>` +
+          `<span class="check-label">${esc(f.label)}</span></div>` +
+          `<p class="summary">${esc(f.summary)}</p>` +
+          f.citations.map(citationHtml).join('') +
+          extractPanelHtml(f, extraction, docTitle) +
+          `</article>`
+        );
+      }
+
+      function renderReport(report, extractDoc) {
         const flags = report.findings.filter((f) => f.verdict === 'flagged').length;
-        const meta =
-          `${flags} flag(s) · ${report.findings.length} checks` +
-          (report.generatedAt ? ` · generated ${esc(fmtTime(report.generatedAt))}` : '');
+        const strip = report.findings
+          .map(
+            (f) =>
+              `<a href="#check-${esc(f.checkId)}"><span class="dot ${esc(f.verdict)}">${VERDICT_ICON[f.verdict] || ''}</span> ${esc(f.label)}</a>`,
+          )
+          .join('');
         out.innerHTML =
-          `<div class="card report"><div class="kicker">Due-diligence report</div>` +
-          `<div class="label">${esc(report.company)}</div>` +
-          `<div class="cite">${meta}</div>` +
+          `<div class="card"><div class="kicker">Due-diligence report</div>` +
+          `<div class="report-head"><span class="company-name">${esc(report.company)}</span>` +
+          `<span class="report-meta">${flags} flag${flags === 1 ? '' : 's'} · ${report.findings.length} checks` +
+          (report.generatedAt
+            ? ` · <time datetime="${esc(report.generatedAt)}">${fmtTime(report.generatedAt)}</time>`
+            : '') +
+          `</span></div>` +
+          `<nav class="verdict-strip" aria-label="Verdicts">${strip}</nav></div>` +
           report.findings
-            .map((f) => {
-              const cite = f.citations[0];
-              const icon = VERDICT_ICON[f.verdict] || '';
-              return (
-                `<div class="finding"><span class="badge ${f.verdict}">${icon} ${esc(f.verdict)}</span>` +
-                `<div><div class="label">${esc(f.label)}</div>` +
-                `<div class="summary">${esc(f.summary)}</div>` +
-                (cite
-                  ? `<div class="cite"><span class="tag">Evidence:</span> ${esc(cite.company)} · ${esc(cite.sourceType)} · ${esc(cite.title)} #${cite.ordinal} — “${esc(cite.snippet)}”</div>`
-                  : '') +
-                `</div></div>`
-              );
-            })
-            .join('') +
-          `</div>`;
+            .map((f) => findingHtml(f, extractDoc?.extraction, extractDoc?.title))
+            .join('');
+      }
+
+      function resultHtml(r) {
+        const preview = r.content.slice(0, 400);
+        const rest = r.content.length > 400;
+        return (
+          `<div class="card">` +
+          `<div class="result-src"><span class="meter" title="cosine similarity"><span style="width:${Math.round(
+            Math.max(0, Math.min(1, r.score)) * 100,
+          )}%"></span></span>` +
+          `<span class="num">cosine ${r.score.toFixed(2)}</span>` +
+          `<span>${esc(r.company)} · ${esc(r.sourceType)} · ${esc(r.title)} #${r.ordinal}</span></div>` +
+          `<p class="result-body">${esc(preview)}${rest ? '…' : ''}</p>` +
+          (rest
+            ? `<details class="more"><summary>Show full chunk</summary><p class="result-body">${esc(r.content)}</p></details>`
+            : '') +
+          `</div>`
+        );
       }
 
       function renderSearch(data) {
         out.innerHTML =
-          `<div class="card searchcard"><div class="kicker">Corpus search</div>` +
-          `<div class="label">${data.count} result(s) for “${esc(data.query)}”</div>` +
-          data.results
-            .map(
-              (r) =>
-                `<div class="finding"><span class="badge score">${r.score.toFixed(2)} match</span>` +
-                `<div><div class="label">${esc(r.company)} · ${esc(r.sourceType)} · ${esc(r.title)} #${r.ordinal}</div>` +
-                `<div class="cite">${esc(r.content.slice(0, 200))}…</div></div></div>`,
-            )
-            .join('') +
-          `</div>`;
+          `<div class="card"><div class="kicker">Corpus search</div>` +
+          `<div class="report-head"><span class="company-name">${data.count} result${data.count === 1 ? '' : 's'}</span>` +
+          `<span class="report-meta">for &ldquo;${esc(data.query)}&rdquo;</span></div>` +
+          (data.count === 0
+            ? `<p class="summary">Nothing matched — try one of the suggested queries below the search box.</p>`
+            : '') +
+          `</div>` +
+          data.results.map(resultHtml).join('');
       }
 
       async function report(company) {
-        out.textContent = 'Running the agent…';
-        try {
-          renderReport(await json('/report/' + encodeURIComponent(company)));
-        } catch (e) {
-          out.textContent = 'Error: ' + e.message;
-        }
+        skeleton(3);
+        const target = '/report/' + encodeURIComponent(company);
+        const [rep, ext] = await Promise.allSettled([
+          json(target),
+          json('/extract/' + encodeURIComponent(company)),
+        ]);
+        out.removeAttribute('aria-busy');
+        if (rep.status === 'rejected') return renderError(rep.reason, 'run the report');
+        // The extraction panel is progressive enhancement — a failed /extract never blocks the report.
+        // Prefer the filing-summary PDF: it carries the fullest structured fields.
+        const docs = ext.status === 'fulfilled' ? ext.value.documents : [];
+        const extractDoc =
+          docs.find((d) => d.sourceType === 'filing-summary' && d.extraction) ??
+          docs.find((d) => d.extraction);
+        renderReport(rep.value, extractDoc);
       }
 
       async function search() {
         const q = document.getElementById('q').value.trim();
         if (!q) return;
-        out.textContent = 'Searching…';
+        skeleton(2);
         try {
-          renderSearch(await json('/search?q=' + encodeURIComponent(q)));
+          const data = await json('/search?q=' + encodeURIComponent(q));
+          out.removeAttribute('aria-busy');
+          renderSearch(data);
         } catch (e) {
-          out.textContent = 'Error: ' + e.message;
+          out.removeAttribute('aria-busy');
+          renderError(e, 'search');
         }
       }
 
-      document.getElementById('searchBtn').addEventListener('click', search);
-      document.getElementById('q').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') search();
+      document.getElementById('search-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        search();
       });
+
+      const SUGGESTIONS = [
+        'related-party lease',
+        'going concern',
+        'largest customer',
+        'auditor change',
+      ];
+      const sugBox = document.getElementById('suggestions');
+      for (const s of SUGGESTIONS) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = s;
+        b.addEventListener('click', () => {
+          document.getElementById('q').value = s;
+          search();
+        });
+        sugBox.appendChild(b);
+      }
 
       (async () => {
         try {
