@@ -3,6 +3,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
+# The React demo (web/) builds with dev deps (vite), so it gets its own stage —
+# the runtime image ships only the static output, never the toolchain. src/ is
+# copied because the frontend imports its API types from the server source.
+FROM node:24-slim AS web
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.ts ./
+COPY src ./src
+COPY web ./web
+RUN npm run build:web
+
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
@@ -12,6 +24,7 @@ ENV EMBED_PROVIDER=local
 ENV LLM_PROVIDER=local
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+COPY --from=web /app/public ./public
 EXPOSE 3000
 # Apply migrations, seed the reference corpus, then serve.
 CMD ["npm", "run", "start:prod"]

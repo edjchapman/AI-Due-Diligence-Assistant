@@ -16,7 +16,7 @@
 
 **An AI due-diligence assistant** that ingests a target company's filings, board minutes, and public commentary, runs structured due-diligence checks via a stateful **LangGraph.js** agent, and produces an **audit-grade report with cited sources** — plus a **CI-runnable evaluation harness** that scores its own answers. A portfolio project by [Ed Chapman](https://github.com/edjchapman) demonstrating end-to-end ownership of a production-shaped LLM system in **TypeScript/Node.js**: design, build, deploy, operate, evaluate.
 
-> **Status: `M6` (PDF ingestion + structured extraction).** The full system is in place: PDF/Markdown
+> **Status: `M7` (typed React frontend — [ADR 0003](docs/adr/0003-react-frontend.md)).** The full system is in place: PDF/Markdown
 > ingest → cited retrieval → a LangGraph.js agent (`GET /report/:company`) → an **eval harness that
 > scores every finding against a golden set and runs in CI on every push** (see [Evaluation](#evaluation)).
 > M6 adds the "front half": a real filing **PDF** is decoded (keyless) and structured into typed DD
@@ -244,16 +244,19 @@ Two honest layers:
   EMBED_PROVIDER=openai LLM_PROVIDER=anthropic JUDGE_PROVIDER=anthropic npm run eval
   ```
 
-## Demo page & deploy
+## Demo app & deploy
 
-A minimal demo page (served at `/`) runs a cited report per company and searches the corpus —
-no build step or framework, one self-contained static HTML file calling the API (screenshot
-above). Each report opens with a per-check **verdict strip**, then one card per check showing the
-agent's summary, **every citation** (source · chunk · cosine score), and the **structured fields
-read from the filing PDF** (`GET /extract/:company`) so the extraction corroborates the agent's
-verdict side-by-side. Light/dark theme follows the OS; loading skeletons and error states are
-plain CSS. Public endpoints (`/search`, `/report`, `/extract`, `/companies`) are rate-limited to
-60/min/IP; `/health` is exempt for platform probes.
+The demo (served at `/`) is a **typed React 19 + Vite app** (`web/`, built into `public/` —
+[ADR 0003](docs/adr/0003-react-frontend.md)) that runs a cited report per company and searches
+the corpus (screenshot above). Its API types are imported **from the server source** — one
+definition of `Report`, `Citation`, and `Extraction` across the stack, so an API shape change
+fails the frontend typecheck. Each report opens with a per-check **verdict strip**, then one card
+per check showing the agent's summary, **every citation** (source · chunk · cosine score), and
+the **structured fields read from the filing PDF** (`GET /extract/:company`) so the extraction
+corroborates the agent's verdict side-by-side. Light/dark theme follows the OS; component tests
+(Testing Library + jsdom) and a built-artifact contract test run keyless in CI. It stays fully
+self-hosted — no CDN, no external requests. Public endpoints (`/search`, `/report`, `/extract`,
+`/companies`) are rate-limited to 60/min/IP; `/health` is exempt for platform probes.
 
 It's **live on Railway** at <https://app-production-e60e.up.railway.app> (config in
 [`railway.json`](railway.json): one Docker image, `/health` probe). The container is **keyless by
@@ -284,9 +287,10 @@ For the **real** semantic + Claude-reasoned path in production, set `EMBED_PROVI
 ## Development
 
 ```bash
-npm run typecheck   # tsc (strict)
-npm run lint        # eslint (type-checked)
-npm test            # vitest — set RUN_DB_TESTS=1 (+ a live DB) for the DB-backed tests
+npm run typecheck   # tsc (strict) — server and web projects
+npm run lint        # eslint (type-checked, + react-hooks for web/)
+npm test            # vitest — builds web/ first; RUN_DB_TESTS=1 (+ a live DB) adds the DB-backed tests
+npm run dev:web     # Vite dev server with hot reload (proxies the API to :3000)
 make check          # the full gate CI runs: typecheck + lint + format + test
 make eval           # the eval harness (keyless)
 ```
@@ -299,6 +303,7 @@ make eval           # the eval harness (keyless)
 - [x] **M4** — eval harness (golden set + LLM-as-judge) scoring the agent, running in CI (`12/12`).
 - [x] **M5** — demo page + rate-limited endpoints + [case study](docs/case-study.md); **deployed live on Railway** ([demo](https://app-production-e60e.up.railway.app)).
 - [x] **M6** — PDF ingestion (keyless `unpdf`) + structured extraction (`GET /extract/:company`) with a field-level precision/recall/F1 test ([ADR 0002](docs/adr/0002-pdf-extraction.md)).
+- [x] **M7** — typed React 19 + Vite frontend (`web/`) with shared server types, component tests, and a built-artifact contract test in CI ([ADR 0003](docs/adr/0003-react-frontend.md)).
 
 ## License
 

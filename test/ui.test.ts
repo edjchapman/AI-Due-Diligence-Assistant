@@ -3,47 +3,62 @@ import { describe, expect, it } from 'vitest';
 import { buildServer } from '../src/server.js';
 
 /**
- * Pins the demo page's contract with the API and its self-contained constraint.
- * The page is vanilla HTML/CSS/JS with no build step, so these string assertions
- * are the whole UI test surface — no browser or DOM library needed.
+ * Pins the served frontend to the API and to the self-hosted constraint.
+ * The demo is a React app built by Vite into public/ (the `pretest` script
+ * builds it before every test run), so these assertions run against the real
+ * production artifact: the served shell, its hashed assets, and the bundle's
+ * API surface.
  */
-describe('demo page contract', () => {
-  async function page(): Promise<string> {
+describe('demo frontend contract', () => {
+  async function fetchPath(path: string): Promise<{ status: number; body: string }> {
     const app = await buildServer({ logger: false });
-    const res = await app.inject({ method: 'GET', url: '/' });
-    expect(res.statusCode).toBe(200);
+    const res = await app.inject({ method: 'GET', url: path });
     await app.close();
-    return res.body;
+    return { status: res.statusCode, body: res.body };
   }
 
-  it('exposes the element hooks the inline script relies on', async () => {
-    const html = await page();
-    for (const id of ['companies', 'q', 'searchBtn', 'out', 'search-form']) {
-      expect(html).toContain(`id="${id}"`);
+  function assetPaths(shell: string): string[] {
+    return [...shell.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1] ?? '');
+  }
+
+  it('serves the built React shell at /', async () => {
+    const { status, body } = await fetchPath('/');
+    expect(status).toBe(200);
+    expect(body).toContain('<html lang="en">');
+    expect(body).toContain('name="color-scheme"');
+    expect(body).toContain('id="root"');
+  });
+
+  it('every referenced asset resolves, and none is external', async () => {
+    const { body: shell } = await fetchPath('/');
+    const assets = assetPaths(shell);
+    expect(assets.length).toBeGreaterThanOrEqual(2); // js + css
+    for (const path of assets) {
+      const { status } = await fetchPath(path);
+      expect(status, path).toBe(200);
+    }
+    // the shell must not load anything from another origin
+    expect(shell).not.toMatch(/<script[^>]+src="http/);
+    expect(shell).not.toMatch(/<link[^>]+href="http/);
+  });
+
+  it('the bundle calls every public API surface, including structured extraction', async () => {
+    const { body: shell } = await fetchPath('/');
+    const jsPath = assetPaths(shell).find((p) => p.endsWith('.js'));
+    expect(jsPath).toBeDefined();
+    const { body: bundle } = await fetchPath(jsPath ?? '');
+    for (const surface of ['/companies', '/report/', '/search?q=', '/extract/']) {
+      expect(bundle).toContain(surface);
     }
   });
 
-  it('calls every public API surface, including structured extraction', async () => {
-    const html = await page();
-    expect(html).toContain('/companies');
-    expect(html).toContain('/report/');
-    expect(html).toContain('/search?q=');
-    expect(html).toContain('/extract/');
-  });
-
-  it('loads no external resources (self-contained, works offline behind the rate limit)', async () => {
-    const html = await page();
-    expect(html).not.toMatch(/<script[^>]+src=/);
-    expect(html).not.toMatch(/<link[^>]+href="http/);
-    expect(html).not.toContain('@import');
-    expect(html).not.toContain('url(http');
-    expect(html).not.toMatch(/fetch\(\s*['"]http/);
-  });
-
-  it('declares language and both color schemes', async () => {
-    const html = await page();
-    expect(html).toContain('<html lang="en">');
-    expect(html).toContain('name="color-scheme"');
-    expect(html).toContain('prefers-color-scheme: dark');
+  it('styles keep the light/dark contract and stay self-contained', async () => {
+    const { body: shell } = await fetchPath('/');
+    const cssPath = assetPaths(shell).find((p) => p.endsWith('.css'));
+    expect(cssPath).toBeDefined();
+    const { body: css } = await fetchPath(cssPath ?? '');
+    expect(css).toContain('prefers-color-scheme:dark');
+    expect(css).not.toContain('@import');
+    expect(css).not.toContain('url(http');
   });
 });

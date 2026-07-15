@@ -76,13 +76,15 @@ Ingest CLI ─▶ Postgres + pgvector ─▶ Fastify API ─▶ LangGraph.js age
   TypeScript. Amazon Textract (OCR / scanned filings) is a documented swap; see
   [ADR 0002](adr/0002-pdf-extraction.md).
 
-- **A demo UI that shows the system, not a chat box.** The public demo page is one
-  self-contained static HTML file (no build step, no framework, no external requests — it works
-  offline behind the rate limit). A report opens with a per-check verdict strip, then one card
-  per check pairing the agent's cited verdict with the **structured fields extracted from the
-  filing PDF** — two independent paths over the same source, corroborating each other on screen.
-  Light/dark follows the OS; a keyless contract test in CI pins the page to the API surface it
-  calls.
+- **A demo UI that shows the system, not a chat box.** The public demo is a typed **React 19 +
+  Vite** app whose API types are imported from the server source — one definition of `Report`,
+  `Citation`, and `Extraction` across the stack, so an API change fails the frontend typecheck.
+  A report opens with a per-check verdict strip, then one card per check pairing the agent's
+  cited verdict with the **structured fields extracted from the filing PDF** — two independent
+  paths over the same source, corroborating each other on screen. Light/dark follows the OS;
+  component tests (Testing Library) and a built-artifact contract test run keyless in CI, and
+  the app stays fully self-hosted (no CDN, no external requests). See
+  [ADR 0003](adr/0003-react-frontend.md).
 
 - **A quality gate that reads like senior code.** Strict TypeScript, type-checked ESLint,
   Prettier, and a `make check` gate mirrored in CI and a pre-commit hook. `make demo` and
