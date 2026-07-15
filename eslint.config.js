@@ -2,12 +2,14 @@
 // "type": "module", so the extension stays .js.
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import reactHooks from 'eslint-plugin-react-hooks';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
   // Global ignores — the flat-config replacement for .eslintignore. Generated
-  // and vendored trees only; everything else is linted.
-  { ignores: ['dist/', 'coverage/', 'drizzle/', 'node_modules/'] },
+  // and vendored trees only; everything else is linted. public/ is the Vite
+  // build output of web/.
+  { ignores: ['dist/', 'coverage/', 'drizzle/', 'node_modules/', 'public/'] },
 
   // Base JS rules + type-aware TS rules across the project. recommendedTypeChecked
   // is the high-signal set: it catches floating/misused promises and unsafe `any`
@@ -32,6 +34,13 @@ export default tseslint.config(
   {
     files: ['**/*.js'],
     extends: [tseslint.configs.disableTypeChecked],
+  },
+
+  // React frontend (web/) — the hooks rules catch the classic dependency and
+  // conditional-hook mistakes that type-checking alone can't.
+  {
+    files: ['web/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat.recommended],
   },
 
   // Must be LAST: drop every rule that would fight Prettier's formatting.

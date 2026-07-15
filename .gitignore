@@ -26,3 +26,6 @@ standups/
 
 # Added by ggshield
 .cache_ggshield
+
+# Vite build output of web/ (built in Docker/CI, never committed)
+/public/
