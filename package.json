@@ -4,6 +4,16 @@
   "private": true,
   "type": "module",
   "description": "AI due-diligence assistant: cited-source reports over a company corpus via a LangGraph.js agent, with a CI-runnable eval harness. TypeScript/Node.js portfolio project.",
+  "license": "MIT",
+  "author": "Ed Chapman (https://github.com/edjchapman)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edjchapman/ai-due-diligence-assistant.git"
+  },
+  "homepage": "https://app-production-e60e.up.railway.app",
+  "bugs": {
+    "url": "https://github.com/edjchapman/ai-due-diligence-assistant/issues"
+  },
   "engines": {
     "node": ">=24"
   },
