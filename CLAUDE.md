@@ -41,6 +41,13 @@ is measured, not asserted. Built deliberately in **TypeScript/Node.js** (see `do
   and in the demo. A keyless field-level **precision/recall/F1** test (`test/extract.test.ts` vs
   `src/golden-extract.ts`) rides `npm test`. The eval stays `12/12` — the PDF fixtures reinforce the
   planted signals. See [ADR 0002](docs/adr/0002-pdf-extraction.md). Textract is a documented swap.
+- **M7 — done ✅** Typed React frontend: the demo is a **React 19 + Vite** app (`web/`, built into
+  `public/` which Fastify serves — [ADR 0003](docs/adr/0003-react-frontend.md)). API types are
+  imported type-only **from the server source** (one `Report`/`Citation`/`Extraction` definition
+  across the stack); state is a discriminated-union view model with stale-response protection.
+  Component tests (Testing Library + jsdom) and a built-artifact contract test (`test/ui.test.ts`)
+  ride `npm test` keyless — `pretest` runs `vite build`, so `public/` is build output (gitignored;
+  a dedicated Docker stage builds it for deploys). Frontend hot-reload: `npm run dev:web`.
 
 **Provider switches (keep demos/CI keyless):** `EMBED_PROVIDER=local` (lexical embedder),
 `LLM_PROVIDER=local` (heuristic reasoner), `JUDGE_PROVIDER=local` (verdict-match judge), and
@@ -68,7 +75,9 @@ Full rationale: [`docs/adr/0001-stack-and-deploy.md`](docs/adr/0001-stack-and-de
 
 ```
 src/server.ts      Fastify factory (async buildServer) — /, /health, /companies, /search, /report, /extract; rate-limited
-public/index.html  demo page (served at /) — self-contained, light/dark; verdict strip, cited findings + /extract fields
+web/               React 19 + Vite demo app — typed api client (imports server types), components, jsdom tests
+public/            BUILD OUTPUT of web/ (gitignored) — `npm run build:web`; served at / by Fastify
+vite.config.ts     Vite config: root web/, outDir public/, dev-server proxy to :3000
 railway.json       Railway deploy config (Dockerfile, /health probe)
 src/index.ts       entrypoint (listen)
 src/chunk.ts       paragraph-aware text chunker (pure)
@@ -92,6 +101,7 @@ scripts/generate-pdf-fixtures.ts  `npm run fixtures:pdf` — regenerate the comm
 fixtures/          reference-company docs (md + filing-summary.pdf) + manifest.json (planted DD signals)
 drizzle/           generated migrations (0000 also CREATE EXTENSION vector; 0001 adds documents.extraction)
 test/              Vitest specs (health/chunk/reasoner/extract/ui keyless; retrieval/agent/eval on RUN_DB_TESTS)
+                   + web/src/*.test.{ts,tsx} — React component tests (jsdom), also keyless
 docs/adr/          architecture decision records
 ```
 
